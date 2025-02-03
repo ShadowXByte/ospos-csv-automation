@@ -1,0 +1,26 @@
+# Ignore Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environments
+venv/
+.env/
+.venv/
+
+# Ignore logs and temp files
+*.log
+*.tmp
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore keyring storage (if custom file-based storage is ever used)
+keyring_pass.cfg
+
+# Ignore any backup or temp files
+backup/
+*.bak
+*.swp
+
