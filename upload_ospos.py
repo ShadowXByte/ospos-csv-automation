@@ -68,7 +68,20 @@ def natural_sort_key(file_name):
     return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', file_name)]
 
 # Prompt user to choose which section to upload files to
-section = input("Enter the section to upload CSV files to (Items/Customers): ").strip().capitalize()
+def choose_section():
+    print("Choose the section to upload CSV files to:")
+    print("1. Items")
+    print("2. Customers")
+    choice = input("Enter the number for your choice (1 or 2): ").strip()
+    if choice == '1':
+        return "Items"
+    elif choice == '2':
+        return "Customers"
+    else:
+        print("Invalid choice. Defaulting to Items.")
+        return "Items"
+
+section = choose_section()
 
 # Get user credentials, OSPOS URL, CSV directory, and ChromeDriver path
 USERNAME, PASSWORD = get_credentials()
@@ -79,7 +92,7 @@ CHROMEDRIVER_PATH = get_chromedriver_path()
 # Initialize WebDriver
 def setup_driver():
     options = webdriver.ChromeOptions()
-    service = Service(CHROMEDRIVER_PATH)  # Correct way to set ChromeDriver path in Selenium 4
+    service = Service(CHROMEDRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(OSPOS_URL)
     return driver
@@ -89,7 +102,7 @@ def login(driver):
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "input-username"))).send_keys(USERNAME)
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "input-password"))).send_keys(PASSWORD)
     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[@type='submit']"))).click()
-    time.sleep(3)  # Allow time for login
+    time.sleep(3)
 
 # Ensure modal is closed before proceeding
 def close_modal_if_open(driver):
@@ -100,62 +113,68 @@ def close_modal_if_open(driver):
         time.sleep(2)
         print("Closed stuck modal.")
     except:
-        pass  # If no modal is open, continue
+        pass
 
-# Navigate to CSV Import Page
+# Navigate to the CSV import page
 def navigate_to_csv_import(driver, section):
-    WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.LINK_TEXT, section))).click()
-    time.sleep(3)
-    close_modal_if_open(driver)
-    csv_import_button = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, f"//button[contains(@data-href, '{section.lower()}/csvImport')]"))
-    )
-    csv_import_button.click()
-    time.sleep(3)  # Allow modal to open
+    try:
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.LINK_TEXT, section))).click()
+        time.sleep(3)
+        open_csv_import_modal(driver)
+    except Exception as e:
+        print(f"Failed to navigate to {section} section: {e}")
+
+# Open CSV Import Modal
+def open_csv_import_modal(driver):
+    try:
+        csv_import_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, f"//button[contains(@data-href, '{section.lower()}/csvImport')]"))
+        )
+        csv_import_button.click()
+        time.sleep(3)
+    except Exception as e:
+        print(f"Failed to open CSV import modal: {e}")
 
 # Upload a single CSV file
-def upload_csv(driver, file_path, section):
-    navigate_to_csv_import(driver, section)
-    
+def upload_csv(driver, file_path, first_upload):
+    if first_upload:
+        navigate_to_csv_import(driver, section)
+    else:
+        open_csv_import_modal(driver)
+
     try:
         file_input = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "file_path")))
         file_input.send_keys(file_path)
-        
+
         submit_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'Submit')]"))
         )
         submit_button.click()
-        
-        time.sleep(5)  # Wait for the upload to complete
-        
-        # Wait for modal to close before proceeding
+
+        time.sleep(5)
         WebDriverWait(driver, 10).until_not(EC.presence_of_element_located((By.CLASS_NAME, "modal-dialog")))
         time.sleep(2)
-        
+
         print(f"Uploaded: {file_path}")
         return True
     except Exception as e:
         print(f"Failed to upload {file_path}: {e}")
-        close_modal_if_open(driver)  # Force close modal if stuck
+        close_modal_if_open(driver)
         return False
 
 # Process all CSV files
 def upload_csv_files():
     driver = setup_driver()
     login(driver)
-    
-    # Get all CSV files
-    files = [f for f in os.listdir(CSV_DIRECTORY) if f.endswith(".csv")]
-    
-    # Sort files naturally if they have numbers, else keep original order
-    if any(re.search(r'\d+', f) for f in files):
-        sorted_files = sorted(files, key=natural_sort_key)
-    else:
-        sorted_files = files
 
+    files = [f for f in os.listdir(CSV_DIRECTORY) if f.endswith(".csv")]
+    sorted_files = sorted(files, key=natural_sort_key)
+
+    first_upload = True
     for filename in sorted_files:
         file_path = os.path.join(CSV_DIRECTORY, filename)
-        upload_csv(driver, file_path, section)
+        upload_csv(driver, file_path, first_upload)
+        first_upload = False
 
     print("Process Completed.")
     driver.quit()
