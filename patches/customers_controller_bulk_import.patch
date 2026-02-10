@@ -1,0 +1,90 @@
+--- Customers.php (original)
++++ Customers.php (modified)
+@@ -1,6 +1,7 @@
+ <?php
+ namespace App\Controllers;
+ 
++use App\Libraries\BulkImport;
+ use App\Libraries\Mailchimp_lib;
+ use App\Models\Customer;
+ use App\Models\Customer_rewards;
+@@ -450,6 +451,68 @@
+         }
+     }
+ 
++    /**
++     * Bulk import customers from multiple CSV files (ENHANCEMENT)
++     * Processes multiple CSV files in sequence and aggregates results
++     * @return void
++     * @noinspection PhpUnused
++     */
++    public function postImportBulkCsvFiles(): void
++    {
++        if (empty($_FILES['file_paths']) || $_FILES['file_paths']['error'][0] === UPLOAD_ERR_NO_FILE) {
++            echo json_encode([
++                'success' => false,
++                'message' => lang('Customers.csv_import_failed')
++            ]);
++            return;
++        }
++
++        try {
++            $bulkImport = new BulkImport();
++            $uploadedFiles = [];
++
++            // Collect uploaded files
++            for ($i = 0; $i < count($_FILES['file_paths']['name']); $i++) {
++                if ($_FILES['file_paths']['error'][$i] === UPLOAD_ERR_OK) {
++                    // Create temporary file object
++                    $tmpFile = (object)[
++                        'tmp_name' => $_FILES['file_paths']['tmp_name'][$i],
++                        'name'     => $_FILES['file_paths']['name'][$i],
++                        'error'    => $_FILES['file_paths']['error'][$i]
++                    ];
++                    $uploadedFiles[] = $tmpFile;
++                }
++            }
++
++            if (empty($uploadedFiles)) {
++                echo json_encode([
++                    'success' => false,
++                    'message' => lang('Customers.csv_import_failed')
++                ]);
++                return;
++            }
++
++            // Create callback function that uses the existing postImportCsvFile logic
++            $importCallback = function($csvPath) {
++                if (!file_exists($csvPath)) {
++                    return ['success' => false, 'message' => 'File not found'];
++                }
++
++                // Reuse existing import logic by moving file to expected location
++                $tempFile = $_FILES['file_path'] ?? null;
++                $_FILES['file_path'] = [
++                    'name'     => basename($csvPath),
++                    'tmp_name' => $csvPath,
++                    'error'    => UPLOAD_ERR_OK
++                ];
++
++                // Call existing single-file import method
++                ob_start();
++                $this->postImportCsvFile();
++                $output = ob_get_clean();
++                return json_decode($output, true);
++            };
++
++            // Process all files
++            $results = $bulkImport->processMultipleUploads($uploadedFiles, $importCallback);
++
++            echo json_encode($results);
++        } catch (Exception $e) {
++            echo json_encode([
++                'success' => false,
++                'message' => 'Error: ' . $e->getMessage()
++            ]);
++        }
++    }
+ 
+     /**
+      * This deletes customers from the customers table

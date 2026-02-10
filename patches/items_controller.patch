@@ -1,0 +1,52 @@
+--- a/app/Controllers/Items.php
++++ b/app/Controllers/Items.php
+@@ -1,6 +1,7 @@
+ <?php
+ namespace App\Controllers;
+ 
++use App\Models\ImportModel;
+ use App\Models\Item;
+ 
+ class Items extends BaseController
+@@ -24,28 +25,54 @@
+      * Displays a paginated Table of Items only.
+      */
+-    public function import()
++    public function import()
+     {
+-        $this->load->view('items/import');
++        if ($this->request->getMethod() === 'post') {
++
++            $type = $this->request->getPost('import_type');
++
++            if ($type === 'manual') {
++                $file = $this->request->getFile('csv_file');
++                if (!$file || !$file->isValid()) {
++                    return redirect()->back()->with('error', 'No file selected or invalid.');
++                }
++                $importModel = new ImportModel();
++                $report = $importModel->importItemsFromCSV($file->getTempName());
++
++            } elseif ($type === 'auto') {
++                $folder = $this->request->getPost('folder_path');
++                if (!is_dir($folder)) {
++                    return redirect()->back()->with('error', 'Folder not found.');
++                }
++
++                $importModel = new ImportModel();
++                $files = glob($folder.'/*.csv');
++                $report = [];
++                foreach ($files as $file) {
++                    $importReport = $importModel->importItemsFromCSV($file);
++                    $report[] = $importReport;
++                    // Move processed file to processed folder
++                    @rename($file, $folder.'/processed/'.basename($file));
++                }
++            }
++
++            return view('items/import', ['report' => $report ?? null]);
++        }
++
++        return view('items/import');
+     }
+ }

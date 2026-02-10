@@ -1,0 +1,88 @@
+--- a/app/Views/customers/import.php
++++ b/app/Views/customers/import.php
+@@ -1,24 +1,77 @@
+-<div id="customers_table" class="well">
+-    <h3><?php echo lang("customers"); ?> - <?php echo lang("customers_import_csv"); ?></h3>
++<h3><?= lang('customers') ?> - <?= lang('customers_import_csv') ?></h3>
++
++<div class="import-options" style="margin-bottom: 20px;">
++    <label style="margin-right: 20px;">
++        <input type="radio" name="import_type" value="manual" checked> 
++        Manual File Upload
++    </label>
++    <label>
++        <input type="radio" name="import_type" value="auto"> 
++        Auto-Import From Folder
++    </label>
++</div>
++
++<div id="manual-upload">
+     <form action="<?= current_url() ?>" method="post" enctype="multipart/form-data">
+         <div class="form-group">
+-            <label for="csv_file"><?php echo lang("customers_csv_import_file"); ?></label>
+-            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
++            <label for="csv_file"><?= lang('customers_csv_import_file') ?></label>
++            <input type="file" id="csv_file" name="csv_file" accept=".csv" required>
+         </div>
+-        <button type="submit" class="btn btn-primary"><?php echo lang("customers_import"); ?></button>
++        <input type="hidden" name="import_type" value="manual">
++        <button type="submit" class="btn btn-primary"><?= lang('customers_import') ?></button>
+     </form>
+ </div>
++
++<div id="auto-upload" style="display:none;">
++    <form action="<?= current_url() ?>" method="post">
++        <div class="form-group">
++            <label for="folder_path">Folder Path:</label>
++            <input type="text" id="folder_path" name="folder_path" 
++                   placeholder="/var/import/ospos_customers" required>
++        </div>
++        <input type="hidden" name="import_type" value="auto">
++        <button type="submit" class="btn btn-primary">Import All Files</button>
++    </form>
++</div>
++
++<?php if(isset($report) && !empty($report)): ?>
++<hr>
++<h4>Import Report</h4>
++
++<?php if(is_array($report[0] ?? null)): ?>
++    <!-- Multiple files imported -->
++    <?php foreach($report as $idx => $rep): ?>
++        <div class="alert <?= ($rep['success'] > 0) ? 'alert-success' : 'alert-warning' ?>">
++            <strong>File <?= $idx + 1 ?>:</strong>
++            Success: <?= $rep['success'] ?> | Failed: <?= $rep['failed'] ?>
++            <?php if(!empty($rep['errors'])): ?>
++                <ul>
++                <?php foreach($rep['errors'] as $error): ?>
++                    <li><?= $error ?></li>
++                <?php endforeach; ?>
++                </ul>
++            <?php endif; ?>
++        </div>
++    <?php endforeach; ?>
++<?php else: ?>
++    <!-- Single file imported -->
++    <div class="alert <?= ($rep['success'] > 0) ? 'alert-success' : 'alert-warning' ?>">
++        <strong>Import Complete</strong><br>
++        Success: <?= $report['success'] ?> | Failed: <?= $report['failed'] ?>
++        <?php if(!empty($report['errors'])): ?>
++            <h5>Errors:</h5>
++            <ul>
++            <?php foreach($report['errors'] as $error): ?>
++                <li><?= $error ?></li>
++            <?php endforeach; ?>
++            </ul>
++        <?php endif; ?>
++    </div>
++<?php endif; ?>
++<?php endif; ?>
++
++<script>
++document.querySelectorAll('input[name="import_type"]').forEach(r => {
++    r.addEventListener('change', function(){
++        document.getElementById('manual-upload').style.display = this.value=='manual'?'block':'none';
++        document.getElementById('auto-upload').style.display = this.value=='auto'?'block':'none';
++    });
++});
++</script>

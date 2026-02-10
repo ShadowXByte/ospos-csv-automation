@@ -1,0 +1,42 @@
+# Git ignore file for OSPOS Import Module
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Composer
+vendor/
+composer.lock
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Config files (user-specific)
+config/local.php
+.env
+
+# Processed imports (keep local, don't commit)
+import_processed/
+import_failed/
+
+# Backup files
+*.bak
+*.backup
+
+# Node (if any JS tooling)
+node_modules/
+npm-debug.log
+
+# PHP-specific
+.php_cs.cache
